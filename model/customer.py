@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Customer(BaseModel):
-    id: int
-    name: str
+    id: int = Field(description="ID of the customer")
+    name: str = Field(description="Name of the customer")
     
