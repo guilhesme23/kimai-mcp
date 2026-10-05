@@ -6,5 +6,5 @@ class Timesheet(BaseModel):
     activity: int
     project: int
     begin: datetime
-    end: datetime
-    description: str
+    end: datetime | None = None
+    description: str | None = None

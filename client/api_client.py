@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime
 
 from httpx import AsyncClient
 from model import Project, Activity, Timesheet
 from model.dto import CreateTimesheetDTO
+
+logger = logging.getLogger(__name__)
 
 
 class KimaiAPIClient:
@@ -46,14 +49,14 @@ class KimaiAPIClient:
             "size": size,
         }
 
-        print(f"Fetching timesheets with params: {params}")  # Debugging line
+        logger.debug("Fetching timesheets with params: %s", params)
         response = await self.client.get("/timesheets", params=params)
         response.raise_for_status()
         return [Timesheet.model_validate(timesheet) for timesheet in response.json()]
 
     async def create_timesheet(self, timesheet: CreateTimesheetDTO) -> Timesheet:
         json = timesheet.model_dump()
-        print(f"Creating timesheet with data: {json}")  # Debugging line
+        logger.debug("Creating timesheet with data: %s", json)
         response = await self.client.post(
             "/timesheets",
             json=json,

@@ -1,13 +1,12 @@
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from model.project import Project
-from settings import Settings
-from client import KimaiAPIClient
 
-def register_project_tools(server: MCPServer, settings: Settings):
-    api = KimaiAPIClient(settings.kimai_base_url, settings.kimai_api_key)
+from ..context import AppContext
 
+def register_project_tools(server: MCPServer[AppContext]):
     @server.tool()
-    async def list_projects(query: str = None) -> list[Project]:
+    async def list_projects(ctx: Context[AppContext], query: str = None) -> list[Project]:
         """
         Lista todos os projetos visíveis no Kimai para o usuário atual. Se o parâmetro 'query' for fornecido, filtra os projetos pelo nome.
         
@@ -16,5 +15,6 @@ def register_project_tools(server: MCPServer, settings: Settings):
         Returns:
             list[Project]: Uma lista de objetos Project representando os projetos encontrados.
         """
+        api = ctx.request_context.lifespan_context.api
         projects = await api.get_projects(query=query)
         return projects

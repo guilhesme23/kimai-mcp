@@ -1,17 +1,20 @@
 from datetime import datetime
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from model import Timesheet
 from model.dto import CreateTimesheetDTO
-from settings import Settings
-from client import KimaiAPIClient
 
-def register_timesheet_tools(server: MCPServer, settings: Settings):
-    api = KimaiAPIClient(settings.kimai_base_url, settings.kimai_api_key)
+from ..context import AppContext
 
+def register_timesheet_tools(server: MCPServer[AppContext]):
     @server.tool()
     async def list_timesheets(
-        begin: datetime, end: datetime, page: int = 1, size: int = 50
+        ctx: Context[AppContext],
+        begin: datetime,
+        end: datetime,
+        page: int = 1,
+        size: int = 50,
     ) -> list[Timesheet]:
         """
         Lista todas as entradas de timesheet no Kimai dentro do intervalo de datas especificado.
@@ -24,11 +27,14 @@ def register_timesheet_tools(server: MCPServer, settings: Settings):
         Returns:
             list[Timesheet]: Uma lista de objetos Timesheet representando as entradas encontradas.
         """
+        api = ctx.request_context.lifespan_context.api
         timesheets = await api.get_timesheets(begin=begin, end=end, page=page, size=size)
         return timesheets
 
     @server.tool()
-    async def create_timesheet(timesheet: CreateTimesheetDTO) -> Timesheet:
+    async def create_timesheet(
+        ctx: Context[AppContext], timesheet: CreateTimesheetDTO
+    ) -> Timesheet:
         """
         Cria uma nova entrada de timesheet no Kimai.
 
@@ -37,5 +43,6 @@ def register_timesheet_tools(server: MCPServer, settings: Settings):
         Returns:
             Timesheet: O objeto Timesheet criado, incluindo o ID gerado pelo Kimai.
         """
+        api = ctx.request_context.lifespan_context.api
         created_timesheet = await api.create_timesheet(timesheet)
         return created_timesheet

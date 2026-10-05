@@ -1,14 +1,15 @@
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from model import Activity
-from settings import Settings
-from client import KimaiAPIClient
+
+from ..context import AppContext
 
 
-def register_activities_tools(server: MCPServer, settings: Settings):
-    api = KimaiAPIClient(settings.kimai_base_url, settings.kimai_api_key)
-
+def register_activities_tools(server: MCPServer[AppContext]):
     @server.tool()
-    async def list_activities(project_id: int, query: str = None) -> list[Activity]:
+    async def list_activities(
+        ctx: Context[AppContext], project_id: int, query: str = None
+    ) -> list[Activity]:
         """
         Lista todas as atividades visíveis no Kimai para o usuário atual. Se o parâmetro 'query' for fornecido, filtra as atividades pelo nome.
         
@@ -18,5 +19,6 @@ def register_activities_tools(server: MCPServer, settings: Settings):
         Returns:
             list[Activity]: Uma lista de objetos Activity representando as atividades encontradas.
         """
+        api = ctx.request_context.lifespan_context.api
         activities = await api.get_activities(project_id=project_id, query=query)
         return activities
