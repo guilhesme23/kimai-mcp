@@ -1,6 +1,6 @@
 # kimai-mcp
 
-Servidor [MCP](https://modelcontextprotocol.io) para o [Kimai](https://www.kimai.org), o sistema de controle de horas. Ele permite que um agente (como o Claude) consulte projetos e atividades, liste os lançamentos de horas e crie novos, tudo em linguagem natural.
+Servidor [MCP](https://modelcontextprotocol.io) para o [Kimai](https://www.kimai.org), o sistema de controle de horas. Ele permite que um agente (como o Claude) consulte projetos e atividades, liste, crie, edite e exclua lançamentos de horas, tudo em linguagem natural.
 
 ## Tools disponíveis
 
@@ -8,8 +8,11 @@ Servidor [MCP](https://modelcontextprotocol.io) para o [Kimai](https://www.kimai
 |---|---|---|
 | `list_projects` | `query` (opcional) | Lista os projetos visíveis ao usuário, com filtro opcional pelo nome. |
 | `list_activities` | `project_id`, `query` (opcional) | Lista as atividades visíveis de um projeto, com filtro opcional pelo nome. |
-| `list_timesheets` | `begin`, `end`, `page` (padrão 1), `size` (padrão 50) | Lista os lançamentos de horas dentro de um intervalo de datas, paginados. |
+| `list_timesheets` | `begin`, `end`, `page` (padrão 1), `size` (padrão 50) | Lista os lançamentos de horas dentro de um intervalo de datas, paginados. Devolve `items` e os metadados `page`, `size`, `total_items`, `total_pages`, `remaining_pages` e `has_next_page`. |
+| `get_timesheet` | `timesheet_id` | Busca um único lançamento de horas pelo ID. |
 | `create_timesheet` | `timesheet`: `activity`, `project`, `begin`, `end`, `description` | Cria um lançamento de horas e devolve o registro criado. |
+| `update_timesheet` | `timesheet_id`, `timesheet`: `activity`, `project`, `begin`, `end`, `description` (todos opcionais) | Atualiza um lançamento de horas. Só os campos informados mudam; devolve o registro atualizado. |
+| `delete_timesheet` | `timesheet_id` | Exclui um lançamento de horas. A ação é permanente e a tool é marcada como destrutiva, para que o cliente peça confirmação. |
 
 Os horários (`begin`/`end`) são enviados ao Kimai no formato `YYYY-MM-DDThh:mm:ss`, sem informação de fuso. O Kimai os interpreta no fuso horário configurado para o usuário.
 
@@ -57,8 +60,10 @@ kimai-mcp/
 │   └── api_client.py        # KimaiAPIClient: chamadas HTTP (httpx) à API do Kimai
 ├── model/                   # models pydantic das respostas da API
 │   │                        # (project, activity, customer, timesheet)
-│   └── dto/
-│       └── create_timesheet.py  # payload de criação de timesheet
+│   ├── page.py              # Page[T]: wrapper paginado (itens + total de itens e de páginas)
+│   └── dto/                 # payloads de entrada
+│       ├── create_timesheet.py  # criação de timesheet
+│       └── update_timesheet.py  # atualização parcial de timesheet
 └── server/
     ├── __init__.py          # create_server: lifespan e registro das tools
     ├── context.py           # AppContext: o que o lifespan entrega às tools
@@ -70,7 +75,7 @@ Fluxo de execução:
 1. `main.py` carrega as `Settings` e chama `create_server`.
 2. `create_server` cria o `MCPServer` com um **lifespan**. Ao iniciar, o lifespan cria o `KimaiAPIClient` e o entrega dentro de um `AppContext`; ao encerrar, fecha o cliente.
 3. Cada tool declara um parâmetro `ctx: Context[AppContext]`, que o SDK injeta (ele não aparece no schema que o agente enxerga), e obtém o cliente com `ctx.request_context.lifespan_context.api`.
-4. O `KimaiAPIClient` chama a API do Kimai e converte as respostas nos models de `model/`, que as tools devolvem ao agente.
+4. O `KimaiAPIClient` chama a API do Kimai e converte as respostas nos models de `model/`, que as tools devolvem ao agente. Nos endpoints paginados (hoje, só os timesheets), o client também lê os headers `X-Page`, `X-Per-Page`, `X-Total-Count` e `X-Total-Pages` e devolve um `Page[T]`, para o agente saber o total de itens e quantas páginas faltam.
 
 O servidor usa o transporte **stdio**: o stdout é o canal do protocolo MCP.
 
